@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base USDC Transfer Tool</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.1/ethers.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+```
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+    }
+    
+    .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        padding: 40px;
+    }
+    
+    .warning {
+        background: #fff3cd;
+        border: 2px solid #ffc107;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .warning h3 {
+        color: #856404;
+        margin-bottom: 10px;
+    }
+    
+    .warning ul {
+        margin-left: 20px;
+        color: #856404;
+    }
+    
+    h1 {
+        color: #333;
+        margin-bottom: 10px;
+    }
+    
+    .subtitle {
+        color: #666;
+        margin-bottom: 30px;
+    }
+    
+    .section {
+        margin-bottom: 30px;
+    }
+    
+    .section h2 {
+        color: #444;
+        margin-bottom: 15px;
+        font-size: 1.2em;
+    }
+    
+    .upload-area {
+        border: 3px dashed #667eea;
+        border-radius: 10px;
+        padding: 30px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+        background: #f8f9ff;
+    }
+    
+    .upload-area:hover {
+        border-color: #764ba2;
+        background: #f0f2ff;
+    }
+    
+    .upload-area.dragover {
+        border-color: #764ba2;
+        background: #e8ebff;
+    }
+    
+    input[type="file"] {
+        display: none;
+    }
+    
+    .file-info {
+        margin-top: 15px;
+        padding: 15px;
+        background: #e8f5e9;
+        border-radius: 8px;
+        color: #2e7d32;
+    }
+    
+    .input-group {
+        margin-bottom: 20px;
+    }
+    
+    label {
+        display: block;
+        margin-bottom: 8px;
+        color: #555;
+        font-weight: 500;
+    }
+    
+    input[type="text"], input[type="number"] {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 16px;
+        transition: border-color 0.3s;
+    }
+    
+    input[type="text"]:focus, input[type="number"]:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+    
+    button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 15px 30px;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        width: 100%;
+    }
+    
+    button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+    
+    button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .wallets-table {
+        margin-top: 20px;
+        overflow-x: auto;
+    }
+    
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+    }
+    
+    th, td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    th {
+        background: #f5f5f5;
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .status {
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 14px;
+        font-weight: 500;
+    }
+    
+    .status.pending {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .status.success {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .status.error {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .progress {
+        margin-top: 20px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        display: none;
+    }
+    
+    .progress-bar {
+        width: 100%;
+        height: 30px;
+        background: #e0e0e0;
+        border-radius: 15px;
+        overflow: hidden;
+        margin-top: 10px;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        transition: width 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+    }
+    
+    .tx-link {
+        color: #667eea;
+        text-decoration: none;
+        font-size: 14px;
+    }
+    
+    .tx-link:hover {
+        text-decoration: underline;
+    }
+</style>
+```
+
+</head>
+<body>
+    <div class="container">
+        <h1>🔷 Base USDC Transfer Tool</h1>
+        <p class="subtitle">Send USDC from multiple wallets on Base Network</p>
+
+```
+    <div class="warning">
+        <h3>⚠️ SECURITY WARNING</h3>
+        <ul>
+            <li>This tool handles private keys - USE ONLY FOR TESTING</li>
+            <li>Never use this with production funds or real private keys</li>
+            <li>Keys are processed locally in your browser only</li>
+            <li>Do not share this file or use it on untrusted computers</li>
+        </ul>
+    </div>
+    
+    <div class="section">
+        <h2>1. Upload Private Keys File</h2>
+        <div class="upload-area" id="uploadArea">
+            <p style="font-size: 48px; margin-bottom: 10px;">📁</p>
+            <p style="font-size: 18px; margin-bottom: 5px;">Click or drag file here</p>
+            <p style="color: #888; font-size: 14px;">Supports CSV and XLSX files</p>
+            <p style="color: #888; font-size: 12px; margin-top: 10px;">Expected format: Column with header "privatekey" or "private_key"</p>
+            <input type="file" id="fileInput" accept=".csv,.xlsx,.xls">
+        </div>
+        <div id="fileInfo" style="display: none;" class="file-info"></div>
+    </div>
+    
+    <div class="section">
+        <h2>2. Transfer Details</h2>
+        <div class="input-group">
+            <label for="recipientAddress">Recipient Address</label>
+            <input type="text" id="recipientAddress" placeholder="0x..." required>
+        </div>
+        <div class="input-group">
+            <label for="amount">Amount (USDC per wallet)</label>
+            <input type="number" id="amount" placeholder="10" step="0.01" min="0" required>
+        </div>
+    </div>
+    
+    <div class="section">
+        <button id="sendBtn" disabled>Send USDC Transfers</button>
+    </div>
+    
+    <div id="progress" class="progress">
+        <h3>Transfer Progress</h3>
+        <p id="progressText">Preparing...</p>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%">0%</div>
+        </div>
+    </div>
+    
+    <div id="walletsSection" style="display: none;">
+        <h2>Loaded Wallets</h2>
+        <div class="wallets-table">
+            <table id="walletsTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Address</th>
+                        <th>Status</th>
+                        <th>Transaction</th>
+                    </tr>
+                </thead>
+                <tbody id="walletsBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { ethers } = window;
+    
+    // Base network configuration
+    const INFURA_KEY = '836786d915a94ef2a2740048e5febb66';
+    const INFURA_RPC = `https://base-mainnet.infura.io/v3/${INFURA_KEY}`;
+    const USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // USDC on Base
+    const USDC_ABI = [
+        "function transfer(address to, uint256 amount) returns (bool)",
+        "function balanceOf(address owner) view returns (uint256)",
+        "function decimals() view returns (uint8)"
+    ];
+    
+    let wallets = [];
+    let provider;
+    
+    // Initialize provider
+    async function initProvider() {
+        provider = new ethers.JsonRpcProvider(INFURA_RPC);
+    }
+    
+    initProvider();
+    
+    // File upload handling
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const fileInfo = document.getElementById('fileInfo');
+    const sendBtn = document.getElementById('sendBtn');
+    
+    uploadArea.addEventListener('click', () => fileInput.click());
+    
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+    
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+    });
+    
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file) handleFile(file);
+    });
+    
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) handleFile(file);
+    });
+    
+    async function handleFile(file) {
+        const fileName = file.name;
+        const fileExt = fileName.split('.').pop().toLowerCase();
+        
+        try {
+            if (fileExt === 'csv') {
+                await parseCSV(file);
+            } else if (fileExt === 'xlsx' || fileExt === 'xls') {
+                await parseXLSX(file);
+            } else {
+                alert('Unsupported file format. Please upload CSV or XLSX file.');
+                return;
+            }
+            
+            fileInfo.style.display = 'block';
+            fileInfo.innerHTML = `✅ Loaded ${wallets.length} wallet(s) from ${fileName}`;
+            sendBtn.disabled = false;
+            displayWallets();
+        } catch (error) {
+            alert('Error parsing file: ' + error.message);
+            console.error(error);
+        }
+    }
+    
+    function parseCSV(file) {
+        return new Promise((resolve, reject) => {
+            Papa.parse(file, {
+                header: false, // Parse without header first
+                skipEmptyLines: true,
+                complete: (results) => {
+                    try {
+                        wallets = extractPrivateKeys(results.data);
+                        resolve();
+                    } catch (error) {
+                        reject(error);
+                    }
+                },
+                error: (error) => reject(error)
+            });
+        });
+    }
+    
+    function parseXLSX(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }); // Parse as array
+                    wallets = extractPrivateKeys(jsonData);
+                    resolve();
+                } catch (error) {
+                    reject(error);
+                }
+            };
+            reader.onerror = (error) => reject(error);
+            reader.readAsArrayBuffer(file);
+        });
+    }
+    
+    function extractPrivateKeys(data) {
+        const keys = [];
+        const possibleHeaders = ['privatekey', 'private_key', 'privkey', 'key', 'pk'];
+        
+        let hasHeader = false;
+        let keyColumnIndex = 0;
+        
+        // Check if first row is a header
+        if (data.length > 0) {
+            const firstRow = Array.isArray(data[0]) ? data[0] : Object.values(data[0]);
+            
+            // Check if first row contains header-like text
+            for (let i = 0; i < firstRow.length; i++) {
+                const cellValue = String(firstRow[i]).toLowerCase().trim();
+                if (possibleHeaders.includes(cellValue)) {
+                    hasHeader = true;
+                    keyColumnIndex = i;
+                    break;
+                }
+            }
+            
+            // If first value looks like a private key, no header
+            const firstValue = String(firstRow[keyColumnIndex]).trim();
+            if (firstValue.length >= 64 && /^(0x)?[0-9a-fA-F]+$/.test(firstValue)) {
+                hasHeader = false;
+            }
+        }
+        
+        // Start from row 1 if header exists, otherwise row 0
+        const startRow = hasHeader ? 1 : 0;
+        
+        for (let i = startRow; i < data.length; i++) {
+            const row = data[i];
+            let privateKey = null;
+            
+            if (Array.isArray(row)) {
+                // Array format (from CSV or XLSX without header parsing)
+                privateKey = row[keyColumnIndex];
+            } else if (typeof row === 'object') {
+                // Object format (shouldn't happen now, but keep for safety)
+                for (const header in row) {
+                    if (possibleHeaders.includes(header.toLowerCase().trim())) {
+                        privateKey = row[header];
+                        break;
+                    }
+                }
+                if (!privateKey) {
+                    privateKey = Object.values(row)[0];
+                }
+            }
+            
+            if (privateKey && typeof privateKey === 'string') {
+                privateKey = privateKey.trim();
+                
+                // Skip empty or header-like values
+                if (!privateKey || possibleHeaders.includes(privateKey.toLowerCase())) {
+                    continue;
+                }
+                
+                // Add 0x prefix if not present
+                if (!privateKey.startsWith('0x')) {
+                    privateKey = '0x' + privateKey;
+                }
+                
+                // Validate private key format (should be 66 chars with 0x)
+                if (privateKey.length === 66 && /^0x[0-9a-fA-F]{64}$/.test(privateKey)) {
+                    try {
+                        const wallet = new ethers.Wallet(privateKey);
+                        keys.push({
+                            privateKey: privateKey,
+                            address: wallet.address,
+                            status: 'pending',
+                            txHash: null
+                        });
+                    } catch (error) {
+                        console.warn('Invalid private key at row', i + 1, ':', privateKey);
+                    }
+                } else {
+                    console.warn('Invalid private key format at row', i + 1, '(length:', privateKey.length, ')');
+                }
+            }
+        }
+        
+        if (keys.length === 0) {
+            throw new Error('No valid private keys found in file. Ensure the file contains valid 64-character hexadecimal private keys.');
+        }
+        
+        return keys;
+    }
+    
+    function displayWallets() {
+        const walletsSection = document.getElementById('walletsSection');
+        const walletsBody = document.getElementById('walletsBody');
+        
+        walletsSection.style.display = 'block';
+        walletsBody.innerHTML = '';
+        
+        wallets.forEach((wallet, index) => {
+            const row = document.createElement('tr');
+            row.id = `wallet-${index}`;
+            row.innerHTML = `
+                <td>${index + 1}</td>
+                <td><code>${wallet.address.substring(0, 10)}...${wallet.address.substring(38)}</code></td>
+                <td><span class="status pending">Pending</span></td>
+                <td>-</td>
+            `;
+            walletsBody.appendChild(row);
+        });
+    }
+    
+    function updateWalletStatus(index, status, txHash = null) {
+        const row = document.getElementById(`wallet-${index}`);
+        const statusCell = row.cells[2];
+        const txCell = row.cells[3];
+        
+        let statusHTML = '';
+        if (status === 'success') {
+            statusHTML = '<span class="status success">✅ Success</span>';
+        } else if (status === 'error') {
+            statusHTML = '<span class="status error">❌ Failed</span>';
+        } else {
+            statusHTML = '<span class="status pending">⏳ Processing</span>';
+        }
+        
+        statusCell.innerHTML = statusHTML;
+        
+        if (txHash) {
+            txCell.innerHTML = `<a href="https://basescan.org/tx/${txHash}" target="_blank" class="tx-link">View TX</a>`;
+        } else if (status === 'error') {
+            txCell.innerHTML = '<span style="color: #721c24;">Failed</span>';
+        }
+    }
+    
+    sendBtn.addEventListener('click', async () => {
+        const recipient = document.getElementById('recipientAddress').value.trim();
+        const amount = document.getElementById('amount').value;
+        
+        if (!ethers.isAddress(recipient)) {
+            alert('Invalid recipient address');
+            return;
+        }
+        
+        if (!amount || parseFloat(amount) <= 0) {
+            alert('Invalid amount');
+            return;
+        }
+        
+        const confirmed = confirm(`Send ${amount} USDC from ${wallets.length} wallet(s) to ${recipient}?`);
+        if (!confirmed) return;
+        
+        sendBtn.disabled = true;
+        const progressDiv = document.getElementById('progress');
+        const progressText = document.getElementById('progressText');
+        const progressFill = document.getElementById('progressFill');
+        
+        progressDiv.style.display = 'block';
+        
+        const amountInWei = ethers.parseUnits(amount, 6); // USDC has 6 decimals
+        
+        for (let i = 0; i < wallets.length; i++) {
+            const wallet = wallets[i];
+            
+            try {
+                progressText.textContent = `Processing wallet ${i + 1} of ${wallets.length}...`;
+                updateWalletStatus(i, 'processing');
+                
+                const signer = new ethers.Wallet(wallet.privateKey, provider);
+                const usdcContract = new ethers.Contract(USDC_ADDRESS, USDC_ABI, signer);
+                
+                // Send transaction
+                const tx = await usdcContract.transfer(recipient, amountInWei);
+                wallets[i].txHash = tx.hash;
+                
+                // Wait for confirmation
+                await tx.wait();
+                
+                wallets[i].status = 'success';
+                updateWalletStatus(i, 'success', tx.hash);
+                
+            } catch (error) {
+                console.error(`Error with wallet ${i}:`, error);
+                wallets[i].status = 'error';
+                updateWalletStatus(i, 'error');
+            }
+            
+            const progress = ((i + 1) / wallets.length * 100).toFixed(0);
+            progressFill.style.width = progress + '%';
+            progressFill.textContent = progress + '%';
+        }
+        
+        progressText.textContent = 'All transfers completed!';
+        sendBtn.disabled = false;
+        
+        const successCount = wallets.filter(w => w.status === 'success').length;
+        alert(`Completed! ${successCount} of ${wallets.length} transfers successful.`);
+    });
+</script>
+```
+
+</body>
+</html>
