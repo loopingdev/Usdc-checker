@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USDC Balance Checker - Base Network</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+```
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+    }
+    
+    .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    
+    h1 {
+        color: #333;
+        margin-bottom: 10px;
+        text-align: center;
+    }
+    
+    .subtitle {
+        text-align: center;
+        color: #666;
+        margin-bottom: 30px;
+    }
+    
+    .upload-section {
+        border: 2px dashed #667eea;
+        border-radius: 10px;
+        padding: 30px;
+        text-align: center;
+        margin-bottom: 20px;
+        transition: all 0.3s;
+    }
+    
+    .upload-section:hover {
+        border-color: #764ba2;
+        background: #f8f9ff;
+    }
+    
+    input[type="file"] {
+        display: none;
+    }
+    
+    .upload-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px 30px;
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+        transition: transform 0.2s;
+    }
+    
+    .upload-btn:hover {
+        transform: translateY(-2px);
+    }
+    
+    .check-btn {
+        background: #10b981;
+        color: white;
+        padding: 12px 30px;
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+        margin: 20px auto;
+        display: block;
+        transition: transform 0.2s;
+    }
+    
+    .check-btn:hover {
+        transform: translateY(-2px);
+    }
+    
+    .check-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .status {
+        text-align: center;
+        margin: 15px 0;
+        color: #666;
+        font-weight: 500;
+    }
+    
+    .results {
+        margin-top: 30px;
+    }
+    
+    .result-item {
+        background: #f8f9ff;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-radius: 8px;
+        border-left: 4px solid #667eea;
+    }
+    
+    .address {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 5px;
+        word-break: break-all;
+    }
+    
+    .balance {
+        color: #10b981;
+        font-size: 18px;
+        font-weight: 700;
+    }
+    
+    .error {
+        color: #ef4444;
+        background: #fee;
+        padding: 10px;
+        border-radius: 5px;
+        margin: 10px 0;
+    }
+    
+    .loading {
+        text-align: center;
+        color: #667eea;
+        margin: 20px 0;
+    }
+    
+    .spinner {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #667eea;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .total-summary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-top: 20px;
+        text-align: center;
+    }
+    
+    .total-summary h3 {
+        margin-bottom: 10px;
+    }
+    
+    .total-amount {
+        font-size: 32px;
+        font-weight: 700;
+    }
+
+    .info-box {
+        background: #f0f9ff;
+        border-left: 4px solid #3b82f6;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 5px;
+    }
+
+    .info-box p {
+        color: #1e40af;
+        margin: 5px 0;
+    }
+</style>
+```
+
+</head>
+<body>
+    <div class="container">
+        <h1>USDC Balance Checker</h1>
+        <p class="subtitle">Base Network</p>
+
+```
+    <div class="info-box">
+        <p><strong>Supported formats:</strong> CSV (.csv) and Excel (.xlsx, .xls)</p>
+        <p><strong>File structure:</strong> Private keys should be in any column (with or without headers)</p>
+    </div>
+    
+    <div class="upload-section">
+        <p style="margin-bottom: 15px; color: #666;">Upload a CSV or Excel file with private keys</p>
+        <label for="fileInput" class="upload-btn">Choose File</label>
+        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls">
+        <p id="fileName" style="margin-top: 15px; color: #667eea; font-weight: 500;"></p>
+    </div>
+    
+    <button id="checkBtn" class="check-btn" disabled>Check Balances</button>
+    <button id="testRpcBtn" class="upload-btn" style="display: block; margin: 10px auto;">Test RPC Connection</button>
+    
+    <div id="status" class="status"></div>
+    <div id="loading" class="loading" style="display: none;">
+        <div class="spinner"></div>
+        <p>Checking balances...</p>
+    </div>
+    <div id="results" class="results"></div>
+</div>
+
+<script>
+    const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'; // Base USDC
+    const INFURA_KEY = '836786d915a94ef2a2740048e5febb66';
+    const INFURA_RPC = `https://base-mainnet.infura.io/v3/${INFURA_KEY}`;
+    const ERC20_ABI = [
+        'function balanceOf(address owner) view returns (uint256)',
+        'function decimals() view returns (uint8)'
+    ];
+    
+    let privateKeys = [];
+    let provider;
+    let currentRpcIndex = 0;
+    
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            document.getElementById('fileName').textContent = `Selected: ${file.name}`;
+            const fileName = file.name.toLowerCase();
+            
+            if (fileName.endsWith('.csv')) {
+                parseCSV(file);
+            } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+                parseExcel(file);
+            } else {
+                document.getElementById('status').innerHTML = '<div class="error">Unsupported file format. Please use CSV or Excel files.</div>';
+            }
+        }
+    });
+    
+    function parseCSV(file) {
+        Papa.parse(file, {
+            complete: function(results) {
+                extractPrivateKeys(results.data);
+            },
+            error: function(error) {
+                document.getElementById('status').innerHTML = `<div class="error">Error parsing CSV: ${error.message}</div>`;
+            }
+        });
+    }
+    
+    function parseExcel(file) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                // Get the first sheet
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // Convert to JSON (array of arrays)
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                
+                extractPrivateKeys(jsonData);
+            } catch (error) {
+                document.getElementById('status').innerHTML = `<div class="error">Error parsing Excel: ${error.message}</div>`;
+            }
+        };
+        
+        reader.onerror = function() {
+            document.getElementById('status').innerHTML = '<div class="error">Error reading file</div>';
+        };
+        
+        reader.readAsArrayBuffer(file);
+    }
+    
+    function extractPrivateKeys(data) {
+        privateKeys = [];
+        
+        // Iterate through all rows and columns
+        data.forEach((row, rowIndex) => {
+            if (Array.isArray(row)) {
+                row.forEach(cell => {
+                    // Skip if cell is null, undefined, or an object
+                    if (cell === null || cell === undefined || typeof cell === 'object') {
+                        return;
+                    }
+                    
+                    const value = String(cell).trim();
+                    // Check if it looks like a private key (hex string, typically 64 chars without 0x or 66 with 0x)
+                    if (value && value.length >= 64 && !value.toLowerCase().includes('private') && !value.toLowerCase().includes('key')) {
+                        // Keep the key as-is
+                        privateKeys.push(value);
+                    }
+                });
+            } else if (row !== null && row !== undefined && typeof row !== 'object') {
+                // Handle case where row is a single value
+                const value = String(row).trim();
+                if (value && value.length >= 64 && !value.toLowerCase().includes('private') && !value.toLowerCase().includes('key')) {
+                    privateKeys.push(value);
+                }
+            }
+        });
+        
+        if (privateKeys.length > 0) {
+            document.getElementById('checkBtn').disabled = false;
+            document.getElementById('status').textContent = `Found ${privateKeys.length} private key(s)`;
+        } else {
+            document.getElementById('status').innerHTML = '<div class="error">No private keys found in file. Make sure your file contains valid private keys.</div>';
+        }
+    }
+    
+    async function testRpcEndpoint(rpcUrl) {
+        try {
+            const response = await fetch(rpcUrl, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    method: 'eth_blockNumber',
+                    params: [],
+                    id: 1
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                throw new Error(data.error.message || 'RPC Error');
+            }
+            
+            if (data.result) {
+                return {
+                    success: true,
+                    blockNumber: parseInt(data.result, 16)
+                };
+            }
+            
+            throw new Error('Invalid response format');
+        } catch (error) {
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+    
+    async function getUsdcBalance(address) {
+        const response = await fetch(INFURA_RPC, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                method: 'eth_call',
+                params: [{
+                    to: USDC_ADDRESS,
+                    data: '0x70a08231000000000000000000000000' + address.slice(2)
+                }, 'latest'],
+                id: 1
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error.message);
+        }
+        
+        return BigInt(data.result);
+    }
+    
+    // Test RPC button
+    document.getElementById('testRpcBtn').addEventListener('click', async function() {
+        const statusDiv = document.getElementById('status');
+        const resultsDiv = document.getElementById('results');
+        
+        resultsDiv.innerHTML = '';
+        statusDiv.innerHTML = '<div class="loading">Testing Infura RPC...</div>';
+        this.disabled = true;
+        
+        const resultItem = document.createElement('div');
+        resultItem.className = 'result-item';
+        
+        const startTime = Date.now();
+        const result = await testRpcEndpoint(INFURA_RPC);
+        const latency = Date.now() - startTime;
+        
+        if (result.success) {
+            resultItem.innerHTML = `
+                <div class="address">✓ Infura Base RPC</div>
+                <div class="balance">Block: ${result.blockNumber} | Latency: ${latency}ms</div>
+            `;
+            statusDiv.innerHTML = '<div style="color: #10b981; font-weight: bold;">Infura RPC is working!</div>';
+        } else {
+            resultItem.innerHTML = `
+                <div class="address">✗ Infura Base RPC</div>
+                <div class="error">Error: ${result.error}</div>
+            `;
+            statusDiv.innerHTML = '<div class="error">Infura RPC connection failed!</div>';
+        }
+        
+        resultsDiv.appendChild(resultItem);
+        this.disabled = false;
+    });
+    
+    async function checkBalanceWithRetry(contract, address, maxRetries = 3) {
+        // This function is no longer used, keeping for compatibility
+        return null;
+    }
+    
+    document.getElementById('checkBtn').addEventListener('click', async function() {
+        const resultsDiv = document.getElementById('results');
+        const loadingDiv = document.getElementById('loading');
+        const statusDiv = document.getElementById('status');
+        
+        resultsDiv.innerHTML = '';
+        statusDiv.innerHTML = '';
+        loadingDiv.style.display = 'block';
+        this.disabled = true;
+        
+        try {
+            statusDiv.textContent = 'Connecting to Infura Base RPC...';
+            
+            // Test connection first
+            const testResult = await testRpcEndpoint(INFURA_RPC);
+            if (!testResult.success) {
+                throw new Error(`Infura RPC failed: ${testResult.error}`);
+            }
+            
+            statusDiv.textContent = 'Connected! Checking balances...';
+            
+            let totalBalance = 0n;
+            let successCount = 0;
+            
+            for (let i = 0; i < privateKeys.length; i++) {
+                try {
+                    const wallet = new ethers.Wallet(privateKeys[i]);
+                    const address = wallet.address;
+                    
+                    statusDiv.textContent = `Checking wallet ${i + 1}/${privateKeys.length}...`;
+                    
+                    const balance = await getUsdcBalance(address);
+                    const balanceFormatted = ethers.formatUnits(balance, 6);
+                    totalBalance += balance;
+                    successCount++;
+                    
+                    const resultItem = document.createElement('div');
+                    resultItem.className = 'result-item';
+                    resultItem.innerHTML = `
+                        <div class="address">Wallet #${i + 1}: ${address}</div>
+                        <div class="balance">${balanceFormatted} USDC</div>
+                    `;
+                    resultsDiv.appendChild(resultItem);
+                    
+                    // Small delay to avoid rate limiting
+                    if (i < privateKeys.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+                } catch (error) {
+                    const resultItem = document.createElement('div');
+                    resultItem.className = 'result-item';
+                    resultItem.innerHTML = `
+                        <div class="address">Wallet #${i + 1}</div>
+                        <div class="error">Error: ${error.message}</div>
+                    `;
+                    resultsDiv.appendChild(resultItem);
+                }
+            }
+            
+            const totalFormatted = ethers.formatUnits(totalBalance, 6);
+            const summaryDiv = document.createElement('div');
+            summaryDiv.className = 'total-summary';
+            summaryDiv.innerHTML = `
+                <h3>Summary</h3>
+                <div>Successfully checked: ${successCount} / ${privateKeys.length} wallets</div>
+                <div class="total-amount" style="margin-top: 10px;">${totalFormatted} USDC</div>
+                <div style="font-size: 14px; margin-top: 5px;">Total Balance</div>
+            `;
+            resultsDiv.insertBefore(summaryDiv, resultsDiv.firstChild);
+            
+            statusDiv.innerHTML = '<div style="color: #10b981; font-weight: bold;">Balance check completed!</div>';
+            
+        } catch (error) {
+            statusDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+        } finally {
+            loadingDiv.style.display = 'none';
+            this.disabled = false;
+        }
+    });
+</script>
+```
+
+</body>
+</html>
