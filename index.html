@@ -193,6 +193,87 @@
         color: #1e40af;
         margin: 5px 0;
     }
+
+    .download-btn {
+        background: #8b5cf6;
+        color: white;
+        padding: 12px 30px;
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+        margin: 10px 5px;
+        transition: transform 0.2s;
+        display: inline-block;
+    }
+    
+    .download-btn:hover {
+        transform: translateY(-2px);
+    }
+    
+    .download-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .filter-toggle {
+        text-align: center;
+        margin: 20px 0;
+    }
+
+    .filter-toggle label {
+        font-weight: 600;
+        margin-right: 10px;
+        color: #333;
+    }
+
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 60px;
+        height: 34px;
+        vertical-align: middle;
+    }
+
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 34px;
+    }
+
+    .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 26px;
+        width: 26px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+
+    input:checked + .toggle-slider {
+        background-color: #667eea;
+    }
+
+    input:checked + .toggle-slider:before {
+        transform: translateX(26px);
+    }
 </style>
 ```
 
@@ -218,6 +299,19 @@
     <button id="checkBtn" class="check-btn" disabled>Check Balances</button>
     <button id="testRpcBtn" class="upload-btn" style="display: block; margin: 10px auto;">Test RPC Connection</button>
     
+    <div class="filter-toggle" id="filterSection" style="display: none;">
+        <label for="filterToggle">Show only wallets with balance:</label>
+        <label class="toggle-switch">
+            <input type="checkbox" id="filterToggle">
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+    
+    <div id="downloadSection" style="display: none; text-align: center;">
+        <button id="downloadExcelBtn" class="download-btn">Download Excel (All Wallets)</button>
+        <button id="downloadFilteredBtn" class="download-btn">Download Excel (With Balance Only)</button>
+    </div>
+    
     <div id="status" class="status"></div>
     <div id="loading" class="loading" style="display: none;">
         <div class="spinner"></div>
@@ -238,6 +332,7 @@
     let privateKeys = [];
     let provider;
     let currentRpcIndex = 0;
+    let walletResults = []; // Store all wallet results
     
     document.getElementById('fileInput').addEventListener('change', function(e) {
         const file = e.target.files[0];
@@ -429,19 +524,19 @@
         this.disabled = false;
     });
     
-    async function checkBalanceWithRetry(contract, address, maxRetries = 3) {
-        // This function is no longer used, keeping for compatibility
-        return null;
-    }
-    
     document.getElementById('checkBtn').addEventListener('click', async function() {
         const resultsDiv = document.getElementById('results');
         const loadingDiv = document.getElementById('loading');
         const statusDiv = document.getElementById('status');
+        const filterSection = document.getElementById('filterSection');
+        const downloadSection = document.getElementById('downloadSection');
         
         resultsDiv.innerHTML = '';
         statusDiv.innerHTML = '';
         loadingDiv.style.display = 'block';
+        filterSection.style.display = 'none';
+        downloadSection.style.display = 'none';
+        walletResults = []; // Reset results
         this.disabled = true;
         
         try {
@@ -470,10 +565,20 @@
                     totalBalance += balance;
                     successCount++;
                     
+                    // Store wallet result
+                    walletResults.push({
+                        privateKey: privateKeys[i],
+                        address: address,
+                        balance: balanceFormatted,
+                        balanceRaw: balance,
+                        hasBalance: balance > 0n
+                    });
+                    
                     const resultItem = document.createElement('div');
                     resultItem.className = 'result-item';
+                    resultItem.setAttribute('data-has-balance', balance > 0n);
                     resultItem.innerHTML = `
-                        <div class="address">Wallet #${i + 1}: ${address}</div>
+                        <div class="address">${address}</div>
                         <div class="balance">${balanceFormatted} USDC</div>
                     `;
                     resultsDiv.appendChild(resultItem);
@@ -483,28 +588,36 @@
                         await new Promise(resolve => setTimeout(resolve, 200));
                     }
                 } catch (error) {
-                    const resultItem = document.createElement('div');
-                    resultItem.className = 'result-item';
-                    resultItem.innerHTML = `
-                        <div class="address">Wallet #${i + 1}</div>
-                        <div class="error">Error: ${error.message}</div>
-                    `;
-                    resultsDiv.appendChild(resultItem);
+                    // Store error result but don't show in UI
+                    walletResults.push({
+                        privateKey: privateKeys[i],
+                        address: 'Error',
+                        balance: '0',
+                        balanceRaw: 0n,
+                        hasBalance: false
+                    });
                 }
             }
             
             const totalFormatted = ethers.formatUnits(totalBalance, 6);
+            const walletsWithBalance = walletResults.filter(w => w.hasBalance).length;
+            
             const summaryDiv = document.createElement('div');
             summaryDiv.className = 'total-summary';
             summaryDiv.innerHTML = `
                 <h3>Summary</h3>
                 <div>Successfully checked: ${successCount} / ${privateKeys.length} wallets</div>
+                <div>Wallets with balance: ${walletsWithBalance}</div>
                 <div class="total-amount" style="margin-top: 10px;">${totalFormatted} USDC</div>
                 <div style="font-size: 14px; margin-top: 5px;">Total Balance</div>
             `;
             resultsDiv.insertBefore(summaryDiv, resultsDiv.firstChild);
             
             statusDiv.innerHTML = '<div style="color: #10b981; font-weight: bold;">Balance check completed!</div>';
+            
+            // Show filter and download options
+            filterSection.style.display = 'block';
+            downloadSection.style.display = 'block';
             
         } catch (error) {
             statusDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
@@ -513,6 +626,64 @@
             this.disabled = false;
         }
     });
+    
+    // Filter toggle functionality
+    document.getElementById('filterToggle').addEventListener('change', function() {
+        const resultItems = document.querySelectorAll('.result-item');
+        const showOnlyWithBalance = this.checked;
+        
+        resultItems.forEach(item => {
+            if (item.querySelector('.total-summary')) return; // Skip summary
+            
+            const hasBalance = item.getAttribute('data-has-balance') === 'true';
+            if (showOnlyWithBalance && !hasBalance) {
+                item.style.display = 'none';
+            } else {
+                item.style.display = 'block';
+            }
+        });
+    });
+    
+    // Download all wallets
+    document.getElementById('downloadExcelBtn').addEventListener('click', function() {
+        downloadExcel(walletResults, 'USDC_Balances_All.xlsx');
+    });
+    
+    // Download only wallets with balance
+    document.getElementById('downloadFilteredBtn').addEventListener('click', function() {
+        const filtered = walletResults.filter(w => w.hasBalance);
+        if (filtered.length === 0) {
+            alert('No wallets with balance found!');
+            return;
+        }
+        downloadExcel(filtered, 'USDC_Balances_WithBalance.xlsx');
+    });
+    
+    function downloadExcel(data, filename) {
+        // Prepare data for Excel (no wallet number or error column)
+        const excelData = data.map(w => ({
+            'Private Key': w.privateKey,
+            'Address': w.address,
+            'USDC Balance': w.balance
+        }));
+        
+        // Create worksheet
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        
+        // Set column widths
+        ws['!cols'] = [
+            { wch: 70 }, // Private Key
+            { wch: 45 }, // Address
+            { wch: 20 }  // Balance
+        ];
+        
+        // Create workbook
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'USDC Balances');
+        
+        // Download
+        XLSX.writeFile(wb, filename);
+    }
 </script>
 ```
 
